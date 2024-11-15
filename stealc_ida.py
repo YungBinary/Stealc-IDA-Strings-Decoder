@@ -46,11 +46,6 @@ def xor_data(data, key):
         decoded.append(data[i] ^ key[i])
     return decoded
 
-MAX_STRING_SIZE = 100
-
-def string_from_offset(data, offset):
-    return data[offset : offset + MAX_STRING_SIZE].split(b"\0", 1)[0]
-
 loaded_bin_path = idc.get_input_file_path()
 
 with open(loaded_bin_path, "rb") as f:
