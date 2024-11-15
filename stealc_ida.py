@@ -23,7 +23,7 @@ RULE_SOURCE = """rule StealC
             6A ??
             68 ?? ?? ?? ??
             68 ?? ?? ?? ??
-            A3 ?? ?? ?? ??
+            [0-5]
             E8 ?? ?? ?? ??
         }
 
@@ -66,22 +66,22 @@ for match in yara_scan(filebuf):
     if not str_size:
         continue
 
-    key_rva = filebuf[str_decode_offset + 3 : str_decode_offset + 7]
-    encoded_str_rva = filebuf[str_decode_offset + 8 : str_decode_offset + 12]
-    
     if rule_str_name == "$decode_1":
+        key_rva = filebuf[str_decode_offset + 3 : str_decode_offset + 7]
+        encoded_str_rva = filebuf[str_decode_offset + 8 : str_decode_offset + 12]
         dword_rva = filebuf[str_decode_offset + 21 : str_decode_offset + 25]
     elif rule_str_name == "$decode_2":
-        dword_rva = filebuf[str_decode_offset + 13 : str_decode_offset + 17]
+        key_rva = filebuf[str_decode_offset + 3 : str_decode_offset + 7]
+        encoded_str_rva = filebuf[str_decode_offset + 8 : str_decode_offset + 12]
+        dword_rva = filebuf[str_decode_offset + 30 : str_decode_offset + 34]
 
     key_offset = pe.get_offset_from_rva(struct.unpack("i", key_rva)[0] - image_base)
     encoded_str_offset = pe.get_offset_from_rva(struct.unpack("i", encoded_str_rva)[0] - image_base)
     dword_offset = struct.unpack("i", dword_rva)[0]
     dword_name = f"dword_{hex(dword_offset)[2:]}"
 
-    key = string_from_offset(filebuf, key_offset)
-    encoded_str = string_from_offset(filebuf, encoded_str_offset)
-
+    key = filebuf[key_offset : key_offset + str_size]
+    encoded_str = filebuf[encoded_str_offset : encoded_str_offset + str_size]
     decoded_str = xor_data(encoded_str, key).decode()
 
     print(f'Decoding string at {hex(key_offset + image_base)}, result: {dword_name} = {decoded_str}')
