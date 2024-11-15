@@ -8,21 +8,27 @@ import idaapi
 
 RULE_SOURCE = """rule StealC
 {
-	meta:
-		author = "Yung Binary"
-		hash = "619751f5ed0a9716318092998f2e4561f27f7f429fe6103406ecf16e33837470"
-	strings:
-		$decode_1 = {
-			6A ??
-			68 ?? ?? ?? ??
-			68 ?? ?? ?? ??
-			E8 ?? ?? ?? ??
-			83 C4 0C
-			A3 ?? ?? ?? ??
-		}
-	
-	condition:
-		$decode_1
+    meta:
+        author = "Yung Binary"
+    strings:
+        $decode_1 = {
+            6A ??
+            68 ?? ?? ?? ??
+            68 ?? ?? ?? ??
+            E8 ?? ?? ?? ??
+            83 C4 0C
+            A3 ?? ?? ?? ??
+        }
+        $decode_2 = {
+            6A ??
+            68 ?? ?? ?? ??
+            68 ?? ?? ?? ??
+            A3 ?? ?? ?? ??
+            E8 ?? ?? ?? ??
+        }
+
+    condition:
+        any of them
 }"""
 
 def yara_scan(raw_data):
@@ -32,7 +38,7 @@ def yara_scan(raw_data):
     for match in matches:
         for block in match.strings:
             for instance in block.instances:
-                yield instance.offset
+                yield block.identifier, instance.offset
 
 def xor_data(data, key):
     decoded = bytearray()
@@ -53,7 +59,8 @@ with open(loaded_bin_path, "rb") as f:
 pe = pefile.PE(data=filebuf, fast_load=False)
 image_base = idaapi.get_imagebase()
 
-for str_decode_offset in yara_scan(filebuf):
+for match in yara_scan(filebuf):
+    rule_str_name, str_decode_offset = match
     str_size = int(filebuf[str_decode_offset + 1])
     # Ensure it's not a dummy string
     if not str_size:
@@ -61,7 +68,11 @@ for str_decode_offset in yara_scan(filebuf):
 
     key_rva = filebuf[str_decode_offset + 3 : str_decode_offset + 7]
     encoded_str_rva = filebuf[str_decode_offset + 8 : str_decode_offset + 12]
-    dword_rva = filebuf[str_decode_offset + 21 : str_decode_offset + 25]
+    
+    if rule_str_name == "$decode_1":
+        dword_rva = filebuf[str_decode_offset + 21 : str_decode_offset + 25]
+    elif rule_str_name == "$decode_2":
+        dword_rva = filebuf[str_decode_offset + 13 : str_decode_offset + 17]
 
     key_offset = pe.get_offset_from_rva(struct.unpack("i", key_rva)[0] - image_base)
     encoded_str_offset = pe.get_offset_from_rva(struct.unpack("i", encoded_str_rva)[0] - image_base)
