@@ -1,6 +1,5 @@
 # Stealc-IDA-Strings-Decoder
 Decode Stealc strings and add comments/output in IDA
 
-![COMMENTS](https://github.com/user-attachments/assets/a213de1a-05ff-4bf8-bb56-500179c59119)
+![Screenshot from 2024-11-15 22-36-23](https://github.com/user-attachments/assets/429dabf2-73ad-4bf5-a1f3-4f2fa67ef194)
 
-![OUTPUTS](https://github.com/user-attachments/assets/78855787-c927-46e9-86cc-f59a2b88dc97)
