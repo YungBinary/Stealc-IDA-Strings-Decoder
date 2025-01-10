@@ -16,8 +16,6 @@ RULE_SOURCE = """rule StealC
             68 ?? ?? ?? ??
             68 ?? ?? ?? ??
             E8 ?? ?? ?? ??
-            83 C4 0C
-            A3 ?? ?? ?? ??
         }
         $decode_2 = {
             6A ??
@@ -26,7 +24,6 @@ RULE_SOURCE = """rule StealC
             [0-5]
             E8 ?? ?? ?? ??
         }
-
     condition:
         any of them
 }"""
@@ -49,34 +46,30 @@ def xor_data(data, key):
 loaded_bin_path = idc.get_input_file_path()
 
 with open(loaded_bin_path, "rb") as f:
-    filebuf = f.read()
+    data = f.read()
 
-pe = pefile.PE(data=filebuf, fast_load=False)
+pe = pefile.PE(data=data, fast_load=False)
 image_base = idaapi.get_imagebase()
 
-for match in yara_scan(filebuf):
+for match in yara_scan(data):
     rule_str_name, str_decode_offset = match
-    str_size = int(filebuf[str_decode_offset + 1])
-    # Ensure it's not a dummy string
+    str_size = int(data[str_decode_offset + 1])
+    # Ignore size 0 strings
     if not str_size:
         continue
 
-    if rule_str_name == "$decode_1":
-        key_rva = filebuf[str_decode_offset + 3 : str_decode_offset + 7]
-        encoded_str_rva = filebuf[str_decode_offset + 8 : str_decode_offset + 12]
-        dword_rva = filebuf[str_decode_offset + 21 : str_decode_offset + 25]
-    elif rule_str_name == "$decode_2":
-        key_rva = filebuf[str_decode_offset + 3 : str_decode_offset + 7]
-        encoded_str_rva = filebuf[str_decode_offset + 8 : str_decode_offset + 12]
-        dword_rva = filebuf[str_decode_offset + 30 : str_decode_offset + 34]
+    if rule_str_name.startswith("$decode"):
+        key_rva = data[str_decode_offset + 3 : str_decode_offset + 7]
+        encoded_str_rva = data[str_decode_offset + 8 : str_decode_offset + 12]
+        dword_rva = data[str_decode_offset + 21 : str_decode_offset + 25]
 
     key_offset = pe.get_offset_from_rva(struct.unpack("i", key_rva)[0] - image_base)
     encoded_str_offset = pe.get_offset_from_rva(struct.unpack("i", encoded_str_rva)[0] - image_base)
     dword_offset = struct.unpack("i", dword_rva)[0]
     dword_name = f"dword_{hex(dword_offset)[2:]}"
 
-    key = filebuf[key_offset : key_offset + str_size]
-    encoded_str = filebuf[encoded_str_offset : encoded_str_offset + str_size]
+    key = data[key_offset : key_offset + str_size]
+    encoded_str = data[encoded_str_offset : encoded_str_offset + str_size]
     decoded_str = xor_data(encoded_str, key).decode()
 
     print(f'Decoding string at {hex(key_offset + image_base)}, result: {dword_name} = {decoded_str}')
